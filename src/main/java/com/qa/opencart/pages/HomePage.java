@@ -27,7 +27,7 @@ public class HomePage {
         return pageUrl;
     }
     public String doSearch(String productName) {
-        page.fill(search,"iphone");
+        page.fill(search,productName);
         page.click(searcIcon);
         String header=page.textContent(searchPageHeader);
         System.out.println("Header is: "+header);
