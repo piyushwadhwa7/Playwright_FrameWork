@@ -40,6 +40,10 @@ build/
 
 ### Playwright ###
 trace.zip
+traces/
+screenshots/
+videos/
+downloads/
 # Saved auth/session state (contains live cookies/tokens — never commit)
 appLogin.json
 *.state.json
@@ -48,3 +52,12 @@ appLogin.json
 allure-results/
 allure-report/
 test-output/
+extent-reports/
+reports/
+
+### Logs & temp ###
+*.log
+logs/
+
+### Compiled class files ###
+*.class
