@@ -1,36 +1,23 @@
 package com.qa.opencart.tests;
-
-import com.microsoft.playwright.Page;
-import com.qa.opencart.factory.PlaywrightFactory;
-import com.qa.opencart.pages.HomePage;
+import com.qa.opencart.base.BaseTest;
+import com.qa.opencart.constants.AppConstants;
 import io.qameta.allure.Description;
 import org.testng.Assert;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class HomePageTest {
-    PlaywrightFactory pf;
-    Page page;
-    HomePage homePage;
-    @BeforeTest
-    public void setup(){
-        pf= new PlaywrightFactory();
-        page=pf.initBrowser("chromium");
-        homePage= new HomePage(page);
-    }
-    @Description("This test is used to fetch the page title and verify wherther the titile is correct or not")
+public class HomePageTest extends BaseTest {
+    @Description("This test is used to fetch the page title and verify whether the title is correct or not")
     @Test(priority=1)
     public void homePageTitleTest(){
         String actualTitle=homePage.getHomePageTitle();
-        Assert.assertEquals(actualTitle, "Your Store");
+        Assert.assertEquals(actualTitle, AppConstants.LOGIN_PAGE_TITLE);
     }
-    @Description("This test is used to fetch the actual URL and vrify it will the expected one ")
+    @Description("This test is used to fetch the actual URL and verify it will the expected one ")
     @Test(priority=2)
     public void homePageUrlTest(){
         String actualUrl=homePage.getHomePageUrl();
-        Assert.assertEquals(actualUrl, "https://naveenautomationlabs.com/opencart/");
+        Assert.assertEquals(actualUrl, prop.getProperty("url"));
     }
     @DataProvider
     public Object[][]getProductData(){
@@ -45,9 +32,5 @@ public class HomePageTest {
     public void homePageSearchTest(String productName){
         String actualHeader=homePage.doSearch(productName);
         Assert.assertEquals(actualHeader, "Search - "+ productName);
-    }
-    @AfterTest
-    public void tearDown(){
-        page.context().close();
     }
 }
