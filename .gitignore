@@ -51,6 +51,7 @@ appLogin.json
 ### Test report output (generated per run) ###
 allure-results/
 allure-report/
+allure-history/
 test-output/
 extent-reports/
 reports/

@@ -13,6 +13,14 @@ public class PlaywrightFactory {
     BrowserContext browserContext;
     Page page;
     Properties prop;
+
+    // Exposes the current thread's Page so listeners can capture Playwright
+    // screenshots without a Selenium-style DriverManager.
+    private static final ThreadLocal<Page> tlPage = new ThreadLocal<>();
+    public static Page getPage() {
+        return tlPage.get();
+    }
+
     public Page initBrowser(Properties prop){
         String browserName=prop.getProperty("browser").trim();
         System.out.println("Initializing Playwright Browser "+browserName);
@@ -42,6 +50,7 @@ public class PlaywrightFactory {
 
         browserContext=browser.newContext();
         page = browserContext.newPage();
+        tlPage.set(page);
         page.navigate(prop.getProperty("url").trim());
         return page;
 
