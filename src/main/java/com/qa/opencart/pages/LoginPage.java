@@ -2,6 +2,11 @@ package com.qa.opencart.pages;
 
 import com.microsoft.playwright.Page;
 
+/**
+ * Page Object for the OpenCart login page. Holds the login locators and exposes
+ * the actions a test can perform: read the title/URL, check the "Forgotten
+ * Password" link, and log in.
+ */
 public class LoginPage {
     private Page page;
 
@@ -12,29 +17,43 @@ public class LoginPage {
     private String forgotPassword= "(//a[text()='Forgotten Password'])[1]";
     private String logutbtn="(//a[text()='Logout'])[2]";
 
-    //2.Login page constructor
+    /**
+     * @param page the live Playwright page this object drives (injected by the test).
+     */
     public LoginPage(Page page) {
         this.page = page;
     }
 
     //3. page actions / methods
 
-    //3.page actions/methods
+    /** @return the browser tab's title text for the login page. */
     public String loginPageTitle() {
         String pageTitle=page.title();
         System.out.println("Login Page title is: "+pageTitle);
         return pageTitle;
     }
+
+    /** @return the current URL of the login page. */
     public String loginPageUrl() {
         String pageUrl=page.url();
         System.out.println("Login Page url is: "+pageUrl);
         return pageUrl;
     }
+
+    /** @return true if the "Forgotten Password" link is visible on the login page. */
     public boolean isForgotPasswordPresent() {
         return page.isVisible(forgotPassword);
     }
+
+    /**
+     * Enters the credentials, clicks Login, and checks whether login succeeded
+     * (by looking for the Logout link).
+     *
+     * @param Email    the account email
+     * @param Password the account password
+     * @return true if login succeeded (Logout link visible), false otherwise
+     */
     public boolean doLogin(String Email, String Password) {
-        System.out.println("APP Creds are :  " + Email +":"+ password);
         page.fill(emailId, Email);
         page.fill(password, Password);
         page.click(loginBtn);

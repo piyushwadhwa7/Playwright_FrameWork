@@ -14,35 +14,64 @@ import org.testng.ITestResult;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * TestNG listener (registered in {@code testng_regression.xml}) that enriches
+ * the Allure report: it stamps stable history IDs for trends, captures a
+ * screenshot on failure/skip, and attaches a run summary and flaky-test report.
+ * TestNG calls the {@code onXxx} methods automatically at each stage of a run.
+ */
 public class TestAllureListners implements ITestListener {
 
+    /** @return the plain method name of the given test result. */
     private static String getTestMethodName(ITestResult iTestResult) {
         return iTestResult.getMethod().getConstructorOrMethod().getName();
     }
 
-    // Image attachment for Allure (Playwright screenshot)
+    /**
+     * Captures a PNG screenshot of the given page. The {@code @Attachment}
+     * annotation makes Allure embed the returned bytes in the report.
+     *
+     * @param page the Playwright page to screenshot
+     * @return the screenshot as PNG bytes
+     */
     @Attachment(value = "Page screenshot", type = "image/png")
     public byte[] saveScreenshotPNG(Page page) {
         return page.screenshot();
     }
 
-    // Text attachment for Allure
+    /**
+     * Attaches a plain-text message to the Allure report.
+     *
+     * @param message the text to attach
+     * @return the same message (returned so Allure can capture it)
+     */
     @Attachment(value = "{0}", type = "text/plain")
     public static String saveTextLog(String message) {
         return message;
     }
 
-    // HTML attachment for Allure
+    /**
+     * Attaches an HTML snippet to the Allure report.
+     *
+     * @param html the HTML to attach
+     * @return the same HTML (returned so Allure can capture it)
+     */
     @Attachment(value = "{0}", type = "text/html")
     public static String attachHtml(String html) {
         return html;
     }
 
+    /** Called once when a {@code <test>} block starts; logs its name. */
     @Override
     public void onStart(ITestContext iTestContext) {
         System.out.println("I am in onStart method " + iTestContext.getName());
     }
 
+    /**
+     * Called once when a {@code <test>} block finishes. Computes pass/fail
+     * counts and attaches a run summary plus a flaky-test report (built from the
+     * accumulated Allure history) to the report.
+     */
     @Override
     public void onFinish(ITestContext context) {
 
@@ -125,6 +154,11 @@ public class TestAllureListners implements ITestListener {
         }
     }
 
+    /**
+     * Called before each test method. Sets a stable {@code historyId}/
+     * {@code testCaseId} (class + method name) so Allure can line the same test
+     * up across runs — this is what makes the trend graphs work.
+     */
     @Override
     public void onTestStart(ITestResult iTestResult) {
         System.out.println("I am in onTestStart method " + getTestMethodName(iTestResult) + " start");
@@ -141,11 +175,16 @@ public class TestAllureListners implements ITestListener {
         System.out.println("History + TestCaseId set for: " + uniqueId);
     }
 
+    /** Called when a test passes; logs the success. */
     @Override
     public void onTestSuccess(ITestResult iTestResult) {
         System.out.println("I am in onTestSuccess method " + getTestMethodName(iTestResult) + " succeed");
     }
 
+    /**
+     * Called when a test fails. Screenshots the current page (if any), and
+     * attaches a failure log plus a classified failure summary to the report.
+     */
     @Override
     public void onTestFailure(ITestResult iTestResult) {
 
@@ -168,6 +207,10 @@ public class TestAllureListners implements ITestListener {
         Allure.addAttachment("Failure Details", "text/plain", failureDetails);
     }
 
+    /**
+     * Called when a test is skipped. Screenshots the current page (if any) and
+     * attaches a skip note to the report.
+     */
     @Override
     public void onTestSkipped(ITestResult iTestResult) {
         System.out.println("I am in onTestSkipped method " + getTestMethodName(iTestResult) + " skipped");
@@ -180,6 +223,10 @@ public class TestAllureListners implements ITestListener {
         saveTextLog("Test skipped: " + iTestResult.getName());
     }
 
+    /**
+     * Called when a test fails but is still within its allowed success ratio
+     * (used with success-percentage tests); logs the event.
+     */
     @Override
     public void onTestFailedButWithinSuccessPercentage(ITestResult iTestResult) {
         System.out.println("Test failed but it is in defined success ratio " + getTestMethodName(iTestResult));
