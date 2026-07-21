@@ -112,8 +112,14 @@ public class PlaywrightFactory {
      * @throws RuntimeException if the file is missing or cannot be read
      */
     public Properties initProp() {
+        // config.properties is git-ignored (may hold real local credentials). When it
+        // is absent (e.g. a fresh CI checkout), fall back to the tracked template with
+        // blank credentials — the real values then come from -Dusername/-Dpassword.
+        String configPath = "./src/test/resources/config/config.properties";
+        String templatePath = "./src/test/resources/config/config.properties.template";
+        String pathToLoad = new java.io.File(configPath).exists() ? configPath : templatePath;
         try {
-            FileInputStream ip= new FileInputStream("./src/test/resources/config/config.properties");
+            FileInputStream ip= new FileInputStream(pathToLoad);
             prop = new Properties();
             try {
                 prop.load(ip);

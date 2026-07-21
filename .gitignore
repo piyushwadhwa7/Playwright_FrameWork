@@ -62,3 +62,5 @@ logs/
 
 ### Compiled class files ###
 *.class
+### Local test config (may contain real credentials) ###
+src/test/resources/config/config.properties
