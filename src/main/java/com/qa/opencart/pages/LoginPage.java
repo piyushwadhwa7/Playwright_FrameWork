@@ -1,6 +1,8 @@
 package com.qa.opencart.pages;
 
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.PlaywrightException;
 
 /**
  * Page Object for the OpenCart login page. Holds the login locators and exposes
@@ -15,7 +17,8 @@ public class LoginPage {
     private String password= "//input[@name='password']";
     private String loginBtn="//input[@value='Login']";
     private String forgotPassword= "(//a[text()='Forgotten Password'])[1]";
-    private String logutbtn="(//a[text()='Logout'])[2]";
+    private String logoutBtn="//a[text()='Logout']";
+    private String loginWarning=".alert-danger";
 
     /**
      * @param page the live Playwright page this object drives (injected by the test).
@@ -54,16 +57,29 @@ public class LoginPage {
      * @return true if login succeeded (Logout link visible), false otherwise
      */
     public boolean doLogin(String Email, String Password) {
+        System.out.println("Trying to log in with username/email: " + Email);
         page.fill(emailId, Email);
         page.fill(password, Password);
         page.click(loginBtn);
-        if (page.isVisible(logutbtn)) {
+
+        // OpenCart redirects to the account dashboard (route=account/account) on a
+        // successful login, and stays on account/login on failure. The URL is a far
+        // more reliable success signal than the Logout link (which lives in a hidden
+        // nav dropdown, so waiting for it to be "visible" times out even when logged in).
+        try {
+            page.waitForURL(java.util.regex.Pattern.compile("account/account"),
+                    new Page.WaitForURLOptions().setTimeout(5000));
             System.out.println("user is logged in successfully.......");
             return true;
-        }else  {
-            System.out.println("user is not logged in successfully.......");
-            return false;
+        } catch (PlaywrightException e) {
+            Locator warning = page.locator(loginWarning).first();
+            if (warning.isVisible()) {
+                System.out.println("Login warning: " + warning.innerText().trim());
+            }
+            System.out.println("Current URL after login attempt: " + page.url());
         }
 
+        System.out.println("user is not logged in successfully.......");
+        return false;
     }
 }

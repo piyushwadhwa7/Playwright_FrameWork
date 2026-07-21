@@ -123,6 +123,12 @@ public class PlaywrightFactory {
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
+        // Allow -Dusername / -Dpassword (e.g. GitHub Actions secrets) to override the
+        // values in config.properties, so real credentials never live in the repo.
+        String sysUser = System.getProperty("username");
+        String sysPass = System.getProperty("password");
+        if (sysUser != null && !sysUser.isBlank()) prop.setProperty("username", sysUser);
+        if (sysPass != null && !sysPass.isBlank()) prop.setProperty("password", sysPass);
         return prop;
     }
 }

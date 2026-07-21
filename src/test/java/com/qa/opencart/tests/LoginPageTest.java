@@ -44,8 +44,8 @@ public class LoginPageTest extends BaseTest {
     @Description("This test verifies a user can log in with valid credentials")
     @Test(priority = 3)
     public void appLoginTest(){
-        boolean isLoggedIn = loginPage.doLogin(prop.getProperty("username").trim(), prop.getProperty("password").trim());
-        Assert.assertTrue(isLoggedIn, "Login failed for user: " + prop.getProperty("username"));
-    }
+//        boolean isLoggedIn = loginPage.doLogin(prop.getProperty("username").trim(), prop.getProperty("password").trim());
+//        Assert.assertTrue(isLoggedIn, "Login failed for user: " + prop.getProperty("username"));
+        Assert.assertTrue(loginPage.doLogin(prop.getProperty("username").trim(), prop.getProperty("password").trim()));}
 
 }
