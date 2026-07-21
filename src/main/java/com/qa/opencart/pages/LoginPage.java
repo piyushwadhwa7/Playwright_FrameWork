@@ -58,14 +58,17 @@ public class LoginPage {
      */
     public boolean doLogin(String Email, String Password) {
         System.out.println("Trying to log in with username/email: " + Email);
-        System.out.println("Trying to log in with password: " + Password);
         page.fill(emailId, Email);
         page.fill(password, Password);
         page.click(loginBtn);
 
-        Locator logoutLink = page.locator(logoutBtn).first();
+        // OpenCart redirects to the account dashboard (route=account/account) on a
+        // successful login, and stays on account/login on failure. The URL is a far
+        // more reliable success signal than the Logout link (which lives in a hidden
+        // nav dropdown, so waiting for it to be "visible" times out even when logged in).
         try {
-            logoutLink.waitFor(new Locator.WaitForOptions().setTimeout(5000));
+            page.waitForURL(java.util.regex.Pattern.compile("account/account"),
+                    new Page.WaitForURLOptions().setTimeout(5000));
             System.out.println("user is logged in successfully.......");
             return true;
         } catch (PlaywrightException e) {
