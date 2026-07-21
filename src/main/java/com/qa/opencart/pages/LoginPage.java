@@ -1,6 +1,8 @@
 package com.qa.opencart.pages;
 
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.PlaywrightException;
 
 /**
  * Page Object for the OpenCart login page. Holds the login locators and exposes
@@ -15,7 +17,8 @@ public class LoginPage {
     private String password= "//input[@name='password']";
     private String loginBtn="//input[@value='Login']";
     private String forgotPassword= "(//a[text()='Forgotten Password'])[1]";
-    private String logutbtn="(//a[text()='Logout'])[2]";
+    private String logoutBtn="//a[text()='Logout']";
+    private String loginWarning=".alert-danger";
 
     /**
      * @param page the live Playwright page this object drives (injected by the test).
@@ -54,16 +57,26 @@ public class LoginPage {
      * @return true if login succeeded (Logout link visible), false otherwise
      */
     public boolean doLogin(String Email, String Password) {
+        System.out.println("Trying to log in with username/email: " + Email);
+        System.out.println("Trying to log in with password: " + Password);
         page.fill(emailId, Email);
         page.fill(password, Password);
         page.click(loginBtn);
-        if (page.isVisible(logutbtn)) {
+
+        Locator logoutLink = page.locator(logoutBtn).first();
+        try {
+            logoutLink.waitFor(new Locator.WaitForOptions().setTimeout(5000));
             System.out.println("user is logged in successfully.......");
             return true;
-        }else  {
-            System.out.println("user is not logged in successfully.......");
-            return false;
+        } catch (PlaywrightException e) {
+            Locator warning = page.locator(loginWarning).first();
+            if (warning.isVisible()) {
+                System.out.println("Login warning: " + warning.innerText().trim());
+            }
+            System.out.println("Current URL after login attempt: " + page.url());
         }
 
+        System.out.println("user is not logged in successfully.......");
+        return false;
     }
 }
