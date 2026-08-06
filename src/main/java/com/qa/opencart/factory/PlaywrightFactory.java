@@ -133,8 +133,10 @@ public class PlaywrightFactory {
         // values in config.properties, so real credentials never live in the repo.
         String sysUser = System.getProperty("username");
         String sysPass = System.getProperty("password");
+        String goRestToken = System.getProperty("gorest.bearer.token");
         if (sysUser != null && !sysUser.isBlank()) prop.setProperty("username", sysUser);
         if (sysPass != null && !sysPass.isBlank()) prop.setProperty("password", sysPass);
+        if (goRestToken != null && !goRestToken.isBlank()) prop.setProperty("gorest_bearer_token", goRestToken);
         return prop;
     }
 }
