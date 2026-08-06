@@ -7,3 +7,4 @@ incognito =
 remote =
 env=staging
 OS=Windows 11
+gorest_bearer_token =

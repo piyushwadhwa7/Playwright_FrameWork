@@ -51,6 +51,7 @@ appLogin.json
 ### Test report output (generated per run) ###
 allure-results/
 allure-report/
+allure-api-report/
 allure-history/
 test-output/
 extent-reports/
@@ -62,3 +63,9 @@ logs/
 
 ### Compiled class files ###
 *.class
+### Local test config (may contain real credentials) ###
+src/test/resources/config/config.properties
+
+### MCP / browser session debris ###
+playwright-mcp-output/
+amazon-com-fallback.png

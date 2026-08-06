@@ -9,6 +9,7 @@ A **Java + Playwright** test automation framework built on the **Page Object Mod
 | Java | 21 | Language |
 | [Playwright for Java](https://playwright.dev/java/) | 1.60.0 | Browser automation |
 | [TestNG](https://testng.org/) | 7.10.2 | Test runner & assertions |
+| [REST Assured](https://rest-assured.io/) | 6.0.1 | API testing |
 | [Allure TestNG](https://allurereport.org/) | 2.29.1 | Test result generation |
 | Allure CLI | 3.x | Report generation & trends |
 | [ExtentReports](https://www.extentreports.com/) | 5.1.2 | HTML reporting |
@@ -21,6 +22,9 @@ A **Java + Playwright** test automation framework built on the **Page Object Mod
 ```
 Playwright_FrameWork/
 ├── pom.xml                              # Deps + surefire wired to the TestNG suite
+├── scripts
+│   ├── allure-report.sh                 # Runs full suite N times and builds trend report
+│   └── api-allure-report.sh             # Runs API suite N times and builds API trend report
 └── src
     ├── main/java/com/qa/opencart
     │   ├── ai
@@ -41,13 +45,17 @@ Playwright_FrameWork/
     └── test
         ├── java/com/qa/opencart
         │   ├── base
-        │   │   └── BaseTest.java          # Setup/teardown; loads config, inits browser
+        │   │   ├── BaseTest.java          # UI setup/teardown; loads config, inits browser
+        │   │   └── BaseApiTest.java       # API setup; loads config without launching browser
         │   └── tests
         │       ├── HomePageTest.java      # Home page tests (data-driven search)
-        │       └── LoginPageTest.java     # Login page tests
+        │       ├── LoginPageTest.java     # Login page tests
+        │       ├── GETApiCall.java        # Playwright API request example
+        │       └── Users_Data_API.java    # REST Assured user creation API test
         └── resources
             ├── TestRunners
-            │   └── testng_regression.xml  # Suite: parallel tests + listener registration
+            │   ├── testng_api.xml       # API-only suite for REST Assured tests
+            │   └── testng_regression.xml  # Suite: parallel UI + API tests + listener registration
             └── config
                 └── config.properties      # browser, url, credentials, env, etc.
 ```
@@ -55,16 +63,19 @@ Playwright_FrameWork/
 ### Architecture
 
 - **`PlaywrightFactory`** — creates the `Playwright`, `Browser`, `BrowserContext`, and `Page`. Reads the browser name and target URL from `config.properties`, supports `chromium`, `firefox`, `safari` (WebKit) and branded `chrome`, and throws a clear error for invalid names. Exposes the current thread's page via a static `ThreadLocal<Page>` (`PlaywrightFactory.getPage()`) so listeners can capture screenshots.
-- **`BaseTest`** — all test classes extend it. `@BeforeTest` loads `config.properties` and launches the browser; `@AfterTest` closes the context.
+- **`BaseTest`** — UI test classes extend it. `@BeforeTest` loads `config.properties` and launches the browser; `@AfterTest` closes the context.
+- **`BaseApiTest`** — API test classes extend it. `@BeforeTest` loads `config.properties` only, so API tests can run through the same TestNG XML suite without launching a browser.
 - **Page Objects** (`pages/`) — each page encapsulates its locators and actions (e.g. `getHomePageTitle()`, `doSearch(...)`, `navigateToLoginPage()`), supporting page-chaining.
+- **API Tests** (`tests/Users_Data_API.java`) — uses REST Assured to create a GoRest user with a unique name/email on each run, verifies HTTP `201`, validates the generated `id`, and asserts the response body fields.
 - **`TestAllureListners`** — a TestNG `ITestListener` registered in the suite XML. Attaches Playwright screenshots on failure/skip, sets Allure `historyId`/`testCaseId` (required for v3 trends), and attaches a run summary plus a flaky-test report on finish.
-- **Config-driven** — browser, URL, credentials, and environment come from `config.properties`; headless mode comes from the `-Dheadless` system property.
+- **Config-driven** — browser, URL, UI credentials, API token, and environment come from `config.properties`; headless mode comes from the `-Dheadless` system property.
 
 ## Prerequisites
 
 - JDK 21+
 - Maven 3.8+
 - [Allure CLI](https://allurereport.org/docs/install/) 3.x (for reports): `brew install allure`
+- Node.js on PATH if your Allure CLI install uses the Node wrapper: `brew install node`
 - Playwright browser binaries (installed automatically on first run, or explicitly):
 
 ```bash
@@ -81,9 +92,16 @@ url      = https://naveenautomationlabs.com/opencart/
 username =                 # supply your own test credentials
 password =
 env      = staging
+gorest_bearer_token =      # GoRest Bearer token for API tests
 ```
 
 > **Do not commit real credentials.** Keep secrets out of version control.
+
+You can also pass the GoRest API token from the command line instead of storing it locally:
+
+```bash
+mvn clean test -Dheadless=true -Dgorest.bearer.token=your_token_here
+```
 
 ## Running the Tests
 
@@ -96,6 +114,13 @@ mvn clean test -Dheadless=true  # headless — required on CI (no display)
 
 - **Headless:** defaults to `false` so local runs are headed. CI passes `-Dheadless=true`.
 - **Browser/URL:** controlled by `config.properties`.
+- **UI + API in one suite:** `testng_regression.xml` includes both browser-based UI tests and API-only tests. API tests extend `BaseApiTest`, so they do not initialize Playwright browsers.
+
+Run only the API suite:
+
+```bash
+mvn test -Dsurefire.suiteXmlFiles=src/test/resources/TestRunners/testng_api.xml
+```
 
 ## Allure Reporting
 
@@ -108,14 +133,16 @@ mvn clean test -Dheadless=true
 allure serve allure-results
 ```
 
-### Generate a persistent report WITH cross-run trends
+### Generate and open a persistent report WITH cross-run trends
 
-The key command reads prior history for the trends **and** appends the current run to it:
+The `awesome` command generates the report. It does not support `--open`, so open the generated report with a separate `allure open` command:
 
 ```bash
 allure awesome ./allure-results \
   --history-path allure-history/allure-history.jsonl \
   -o allure-report
+
+allure open allure-report
 ```
 
 Run it after each `mvn test` and the trend graphs gain one data point per run.
@@ -134,15 +161,32 @@ Use the helper script, which runs the suite N times and accumulates history so e
 allure open allure-report          # view the generated report
 ```
 
+### API-only history report
+
+The full-suite report already includes API tests because the same TestNG listener sets Allure history IDs for every test method. To build API-only history without running UI tests, use:
+
+```bash
+./scripts/api-allure-report.sh 4      # runs API tests 4x, builds allure-api-report/
+allure open allure-api-report          # view the generated API report
+```
+
+API-only history is stored separately in `allure-history/api-allure-history.jsonl`.
+
 ### Useful Allure commands
 
 | Command | Purpose |
 |---------|---------|
 | `allure serve allure-results` | Generate a temporary report from the latest run and open it |
 | `allure awesome ./allure-results --history-path allure-history/allure-history.jsonl -o allure-report` | Generate a persistent report with cross-run trend charts |
-| `allure awesome ./allure-results -h allure-history/allure-history.jsonl -o allure-report --open` | Same, then open it in the browser |
 | `allure open allure-report` | Serve an already-generated report directory |
 | `allure history ./allure-results --history-path allure-history/allure-history.jsonl` | Append the current run to history without generating a report |
+| `./scripts/api-allure-report.sh 4` | Run API tests 4 times and generate an API-only trend report |
+
+`allure awesome` does **not** accept `--open`. If you want a one-command helper, use:
+
+```bash
+./scripts/allure-report.sh 4 --open
+```
 
 > **Do not use `allure classic`** with Allure 3.x — it renders a blank page. Use `allure awesome` (shown above); `allure generate` also defaults to the awesome report.
 >
@@ -160,6 +204,13 @@ allure open allure-report          # view the generated report
 - `forgotPasswordLinkExistTest` — the "Forgotten Password" link is present
 - `appLoginTest` — logs in with credentials from `config.properties`
 
+**Users_Data_API**
+- `createUserApiTest` — creates a GoRest user with a unique name/email, asserts status code `201`, verifies the generated `id`, and validates response fields
+- `listOfUserApiTest` — lists users, asserts status code `200`, validates response time, and verifies each returned user has the expected fields
+- `getUserCreatedApiTest` — fetches the user created in the current run and verifies all persisted fields
+- `updateUserApiTest` — updates the created user using `PATCH`, then verifies the updated name/status and unchanged email/gender
+- `deleteUserApiTest` — deletes the created user using `DELETE`, verifies `204`, and confirms the deleted user returns `404`
+
 ## Continuous Integration
 
 GitHub Actions (`.github/workflows/main.yml`) runs the suite on every push/PR to `main`/`master`, installs Playwright browsers, and executes `mvn test -Dheadless=true`.
@@ -170,6 +221,7 @@ GitHub Actions (`.github/workflows/main.yml`) runs the suite on every push/PR to
 - [x] Add Login page object & tests
 - [x] Data-driven tests (TestNG `@DataProvider`)
 - [x] Parallel execution via TestNG XML suite
+- [x] API-only TestNG base class and REST Assured user creation test
 - [x] CI integration (GitHub Actions)
 - [x] Allure reporting with cross-run trend graphs
 - [ ] Excel-driven data via Apache POI

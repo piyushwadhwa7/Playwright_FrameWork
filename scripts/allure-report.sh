@@ -37,9 +37,10 @@ HISTORY="allure-history/allure-history.jsonl"
 TMP_REPORT="$(mktemp -d)"
 
 command -v allure >/dev/null 2>&1 || { echo "ERROR: allure CLI not found. Install with: brew install allure"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "ERROR: node not found. This Allure CLI install requires Node.js on PATH. Install with: brew install node"; exit 1; }
 
 echo "Building Allure report from $RUNS run(s)..."
-rm -rf "$REPORT" "$(dirname "$HISTORY")"
+rm -rf "$REPORT" "$HISTORY"
 mkdir -p "$(dirname "$HISTORY")"
 
 for i in $(seq 1 "$RUNS"); do

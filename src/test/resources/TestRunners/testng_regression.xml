@@ -23,4 +23,11 @@
         </classes>
     </test>
 
+    <!-- API Tests -->
+    <test name="Users API Test">
+        <classes>
+            <class name="com.qa.opencart.tests.Users_Data_API"/>
+        </classes>
+    </test>
+
 </suite>
