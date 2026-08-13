@@ -9,6 +9,7 @@ public class AppConstants {
     public static final String HOME_PAGE_TITLE= "Your Store";
     /** Expected browser title of the OpenCart login page. */
     public static final String LOGIN_PAGE_TITLE= "Account Login";
+    public static final String UPDATED_USERNAME= "piyush wadhwa updated";
 
 
 }

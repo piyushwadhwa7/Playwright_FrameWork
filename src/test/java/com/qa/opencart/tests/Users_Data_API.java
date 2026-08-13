@@ -1,9 +1,13 @@
 package com.qa.opencart.tests;
 
 import com.qa.opencart.base.BaseApiTest;
+import com.qa.opencart.constants.AppConstants;
+import com.qa.opencart.erros.AppError;
+import com.qa.opencart.pages.Payload;
 import io.qameta.allure.Severity;
 import io.qameta.allure.SeverityLevel;
 import io.restassured.RestAssured;
+import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -115,7 +119,7 @@ public class Users_Data_API extends BaseApiTest {
         given().auth().oauth2(token)
                 .header("Content-Type", "application/json")
                 .when()
-                .get("/users/{userId}", createdUserId)
+                .get("/users/{userId}", createdUserId)// path paramter
                 .then()
                 .log().all()
                 .assertThat()
@@ -137,7 +141,7 @@ public class Users_Data_API extends BaseApiTest {
                 .header("Content-Type", "application/json")
                 .body("{ \"name\": \"" + updatedUserName + "\", \"status\": \"" + updatedUserStatus + "\" }")
                 .when()
-                .patch("/users/{userId}", createdUserId)
+                .put("/users/{userId}", createdUserId)
                 .then()
                 .log().all()
                 .assertThat()
@@ -149,7 +153,32 @@ public class Users_Data_API extends BaseApiTest {
                 .body("gender", equalTo(createdUserGender))
                 .body("status", equalTo(updatedUserStatus));
     }
-    @Test(priority = 5, dependsOnMethods = "updateUserApiTest", description = "This is the API test for deleting the created USER using DELETE request")
+    @Test(priority = 5, dependsOnMethods = "updateUserApiTest", description = "This is the API test for getting the created USER using GET request")
+    @Severity(SeverityLevel.CRITICAL)
+    public void getUpdatedUserCreatedApiTest() {
+        RestAssured.baseURI = "https://gorest.co.in/public/v2/";
+        String getUpdatedValues=given().auth().oauth2(token)
+                .header("Content-Type", "application/json")
+                .when()
+                .get("/users/{userId}", createdUserId)// path paramter
+                .then()
+                .log().all()
+                .assertThat()
+                .statusCode(200)
+                .time(lessThan(3000L))
+                .body("id", equalTo(createdUserId))
+                .body("name", equalTo(updatedUserName))
+                .body("email", equalTo(createdUserEmail))
+                .body("gender", equalTo(createdUserGender))
+                .body("status", equalTo(updatedUserStatus))
+                .extract().response().asString();
+        JsonPath jsonPath = new JsonPath(getUpdatedValues);
+        String actualUpdatedValue1=jsonPath.getString("name");
+        System.out.println("actualUpdatedValue1=    "+actualUpdatedValue1);
+        //assertion testing framewroks : 1. Junit and TestNg
+        Assert.assertEquals( actualUpdatedValue1, AppConstants.UPDATED_USERNAME, AppError.USERNAME_NOT_UPDATED);
+    }
+    @Test(priority = 6, dependsOnMethods = "updateUserApiTest", description = "This is the API test for deleting the created USER using DELETE request")
     @Severity(SeverityLevel.CRITICAL)
     public void deleteUserApiTest() {
         RestAssured.baseURI = "https://gorest.co.in/public/v2/";
@@ -175,6 +204,22 @@ public class Users_Data_API extends BaseApiTest {
                 .log().all()
                 .assertThat()
                 .statusCode(404)
-                .body("message", equalTo("Resource not found"));
+                .body("message", equalTo("Resource not found"));}
+    @Test
+    public void mockResponseCheck(){
+        JsonPath js=new JsonPath(Payload.coursePrice());
+        int count=js.getInt("data.size()");
+        System.out.println("count="+count);
+        int pagecount=js.getInt("pagination.totalPages");
+        System.out.println("pagecount="+pagecount);
+        String dataTitle=js.get("data[1].title");
+        System.out.println("dataTitle="+dataTitle);
+        for(int i=0;i<count;i++){
+            String dataTitlesNames =js.get("data["+i+"].title");
+            int dataPrices=js.getInt("data["+i+"].price");
+            System.out.println("dataTitlesNames="+dataTitlesNames);
+            System.out.println("dataPrices="+dataPrices);
+        }
+
     }
 }
