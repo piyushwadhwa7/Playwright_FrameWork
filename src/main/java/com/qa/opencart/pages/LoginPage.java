@@ -3,6 +3,7 @@ package com.qa.opencart.pages;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
+import com.qa.opencart.Utilities.ElementUtil;
 
 /**
  * Page Object for the OpenCart login page. Holds the login locators and exposes
@@ -11,6 +12,7 @@ import com.microsoft.playwright.PlaywrightException;
  */
 public class LoginPage {
     private Page page;
+    private ElementUtil eleUtil;
 
     //1.String Locators
     private String emailId= "//input[@name='email']";
@@ -25,6 +27,7 @@ public class LoginPage {
      */
     public LoginPage(Page page) {
         this.page = page;
+        eleUtil = new ElementUtil(page);
     }
 
     //3. page actions / methods
@@ -58,7 +61,7 @@ public class LoginPage {
      */
     public boolean doLogin(String Email, String Password) {
         System.out.println("Trying to log in with username/email: " + Email);
-        page.fill(emailId, Email);
+        eleUtil.doFill(emailId, Email);
         page.fill(password, Password);
         page.click(loginBtn);
 
