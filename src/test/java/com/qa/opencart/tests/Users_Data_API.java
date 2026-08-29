@@ -1,8 +1,6 @@
 package com.qa.opencart.tests;
 
 import com.qa.opencart.base.BaseApiTest;
-import com.qa.opencart.constants.AppConstants;
-import com.qa.opencart.erros.AppError;
 import com.qa.opencart.pages.Payload;
 import io.qameta.allure.Severity;
 import io.qameta.allure.SeverityLevel;
@@ -11,6 +9,7 @@ import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -19,13 +18,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 public class Users_Data_API extends BaseApiTest {
-    private Integer createdUserId;
-    private String createdUserName;
-    private String createdUserEmail;
-    private String createdUserGender;
-    private String createdUserStatus;
-    private String updatedUserName;
-    private String updatedUserStatus;
+    private final String uniqueValue = String.valueOf(System.currentTimeMillis());
     private String token;
 
     @BeforeClass
@@ -33,22 +26,30 @@ public class Users_Data_API extends BaseApiTest {
         token = getRequiredProperty("gorest_bearer_token");
     }
 
+    @DataProvider(name = "UserDataProvider_Data")
+    public Object[][] getUsersData() {
+        return new Object[][]{{"piyush wadhwa " + uniqueValue,
+       "piyush" + uniqueValue + "@example.com",
+        "male",
+        "active"},
+                {"riti chawla " + uniqueValue,
+                        "riti" + uniqueValue + "@example.com",
+                        "female",
+                        "active"}};
+    }
 
-    @Test(priority = 1, description = "This is the API test for creating a USER using POST request")
+
+    @Test(priority = 1, dataProvider = "UserDataProvider_Data")
     @Severity(SeverityLevel.CRITICAL)
-    public void createUserApiTest() {
+    public void createUserApiTest(String createdUserName , String createdUserEmail, String createdUserGender , String createdUserStatus ) {
         //validate create_Users API is working or not
         // methods to verify the API : Given , When, Then
-        String uniqueValue = String.valueOf(System.currentTimeMillis());
-        createdUserName = "piyush wadhwa " + uniqueValue;
-        createdUserEmail = "piyush" + uniqueValue + "@example.com";
-        createdUserGender = "male";
-        createdUserStatus = "active";
+        String userPayload = Payload.userData(createdUserName, createdUserEmail, createdUserGender, createdUserStatus);
 
         RestAssured.baseURI = "https://gorest.co.in/public/v2/";
         Response response = given().auth().oauth2(token)
                 .header("Content-Type", "application/json")
-                .body("{ \"name\": \"" + createdUserName + "\", \"email\": \"" + createdUserEmail + "\", \"gender\": \"" + createdUserGender + "\", \"status\": \"" + createdUserStatus + "\" }")
+                .body(userPayload)
                 .when()
                 .post("/users")
                 .then()
@@ -71,7 +72,7 @@ public class Users_Data_API extends BaseApiTest {
                 .body("name", matchesPattern("^[a-zA-Z ]+\\d+$"))
                 .body("name", equalTo(createdUserName))
                 .body("email", instanceOf(String.class))
-                .body("email", matchesPattern("^piyush\\d+@example\\.com$"))
+                .body("email", matchesPattern("^[a-zA-Z]+\\d+@example\\.com$"))
                 .body("email", equalTo(createdUserEmail))
                 .body("gender", instanceOf(String.class))
                 .body("gender", anyOf(equalTo("male"), equalTo("female")))
@@ -82,7 +83,8 @@ public class Users_Data_API extends BaseApiTest {
                 .extract()
                 .response();
 
-        createdUserId = response.path("id");
+        Integer createdUserId = response.path("id");
+        Payload.saveCreatedUserId(createdUserEmail, createdUserId);
         System.out.println("Response as json / string "+ response.asString());
         Assert.assertTrue(
                 response.getHeader("Location").endsWith("/" + createdUserId),
@@ -112,9 +114,10 @@ public class Users_Data_API extends BaseApiTest {
                 .body("status", everyItem(notNullValue()));
     }
 
-    @Test(priority = 3, dependsOnMethods = "createUserApiTest", description = "This is the API test for getting the created USER using GET request")
+    @Test(priority = 3, dataProvider = "UserDataProvider_Data", dependsOnMethods = "createUserApiTest", description = "This is the API test for getting the created USER using GET request")
     @Severity(SeverityLevel.CRITICAL)
-    public void getUserCreatedApiTest() {
+    public void getUserCreatedApiTest(String createdUserName , String createdUserEmail, String createdUserGender , String createdUserStatus) {
+        Integer createdUserId = Payload.getCreatedUserId(createdUserEmail);
         RestAssured.baseURI = "https://gorest.co.in/public/v2/";
         given().auth().oauth2(token)
                 .header("Content-Type", "application/json")
@@ -131,15 +134,17 @@ public class Users_Data_API extends BaseApiTest {
                 .body("gender", equalTo(createdUserGender))
                 .body("status", equalTo(createdUserStatus));
     }
-    @Test(priority = 4, dependsOnMethods = "getUserCreatedApiTest", description = "This is the API test for updating the created USER using PATCH request")
+    @Test(priority = 4, dataProvider = "UserDataProvider_Data", dependsOnMethods = "getUserCreatedApiTest", description = "This is the API test for updating the created USER using PATCH request")
     @Severity(SeverityLevel.CRITICAL)
-    public void updateUserApiTest() {
+    public void updateUserApiTest(String createdUserName , String createdUserEmail, String createdUserGender , String createdUserStatus) {
+        Integer createdUserId = Payload.getCreatedUserId(createdUserEmail);
+        String updatedUserName = createdUserName + " updated";
+        String updatedUserStatus = "inactive";
         RestAssured.baseURI = "https://gorest.co.in/public/v2/";
-        updatedUserName = "piyush wadhwa updated";
-        updatedUserStatus = "inactive";
+        String userUpdatePayload = Payload.userUpdateData(updatedUserName, updatedUserStatus);
         given().auth().oauth2(token)
                 .header("Content-Type", "application/json")
-                .body("{ \"name\": \"" + updatedUserName + "\", \"status\": \"" + updatedUserStatus + "\" }")
+                .body(userUpdatePayload)
                 .when()
                 .put("/users/{userId}", createdUserId)
                 .then()
@@ -153,9 +158,12 @@ public class Users_Data_API extends BaseApiTest {
                 .body("gender", equalTo(createdUserGender))
                 .body("status", equalTo(updatedUserStatus));
     }
-    @Test(priority = 5, dependsOnMethods = "updateUserApiTest", description = "This is the API test for getting the created USER using GET request")
+    @Test(priority = 5, dataProvider = "UserDataProvider_Data", dependsOnMethods = "updateUserApiTest", description = "This is the API test for getting the updated USER using GET request")
     @Severity(SeverityLevel.CRITICAL)
-    public void getUpdatedUserCreatedApiTest() {
+    public void getUpdatedUserCreatedApiTest(String createdUserName , String createdUserEmail, String createdUserGender , String createdUserStatus) {
+        Integer createdUserId = Payload.getCreatedUserId(createdUserEmail);
+        String updatedUserName = createdUserName + " updated";
+        String updatedUserStatus = "inactive";
         RestAssured.baseURI = "https://gorest.co.in/public/v2/";
         String getUpdatedValues=given().auth().oauth2(token)
                 .header("Content-Type", "application/json")
@@ -176,11 +184,12 @@ public class Users_Data_API extends BaseApiTest {
         String actualUpdatedValue1=jsonPath.getString("name");
         System.out.println("actualUpdatedValue1=    "+actualUpdatedValue1);
         //assertion testing framewroks : 1. Junit and TestNg
-        Assert.assertEquals( actualUpdatedValue1, AppConstants.UPDATED_USERNAME, AppError.USERNAME_NOT_UPDATED);
+        Assert.assertEquals( actualUpdatedValue1, updatedUserName, "=======CREATED USER NAME IS NOT GETTING UPDATED THROUGH THE UPDATE ( PUT )========");
     }
-    @Test(priority = 6, dependsOnMethods = "updateUserApiTest", description = "This is the API test for deleting the created USER using DELETE request")
+    @Test(priority = 6, dataProvider = "UserDataProvider_Data", dependsOnMethods = "getUpdatedUserCreatedApiTest", description = "This is the API test for deleting the created USER using DELETE request")
     @Severity(SeverityLevel.CRITICAL)
-    public void deleteUserApiTest() {
+    public void deleteUserApiTest(String createdUserName , String createdUserEmail, String createdUserGender , String createdUserStatus) {
+        Integer createdUserId = Payload.getCreatedUserId(createdUserEmail);
         RestAssured.baseURI = "https://gorest.co.in/public/v2/";
         Response deleteResponse = given().auth().oauth2(token)
                 .header("Content-Type", "application/json")
@@ -204,7 +213,11 @@ public class Users_Data_API extends BaseApiTest {
                 .log().all()
                 .assertThat()
                 .statusCode(404)
-                .body("message", equalTo("Resource not found"));}
+                .body("message", equalTo("Resource not found"));
+
+        Payload.removeCreatedUserId(createdUserEmail);
+    }
+
     @Test
     public void mockResponseCheck(){
         JsonPath js=new JsonPath(Payload.coursePrice());

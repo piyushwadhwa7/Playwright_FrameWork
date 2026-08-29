@@ -41,7 +41,8 @@ Playwright_FrameWork/
     │   │                                  #   history IDs, run summary & flaky reports
     │   └── pages
     │       ├── HomePage.java              # Page object: home page locators + actions
-    │       └── LoginPage.java             # Page object: login page locators + actions
+    │       ├── LoginPage.java             # Page object: login page locators + actions
+    │       └── Payload.java               # Reusable API request bodies and expected values
     └── test
         ├── java/com/qa/opencart
         │   ├── base
@@ -66,7 +67,8 @@ Playwright_FrameWork/
 - **`BaseTest`** — UI test classes extend it. `@BeforeTest` loads `config.properties` and launches the browser; `@AfterTest` closes the context.
 - **`BaseApiTest`** — API test classes extend it. `@BeforeTest` loads `config.properties` only, so API tests can run through the same TestNG XML suite without launching a browser.
 - **Page Objects** (`pages/`) — each page encapsulates its locators and actions (e.g. `getHomePageTitle()`, `doSearch(...)`, `navigateToLoginPage()`), supporting page-chaining.
-- **API Tests** (`tests/Users_Data_API.java`) — uses REST Assured to create a GoRest user with a unique name/email on each run, verifies HTTP `201`, validates the generated `id`, and asserts the response body fields.
+- **API Payloads** (`pages/Payload.java`) — centralizes reusable JSON payloads for API tests. `userData()` builds the create-user request body and stores the generated expected values exposed through getters like `getCreatedUserName()`. `userUpdateData()` builds the update-user request body and exposes the updated expected values.
+- **API Tests** (`tests/Users_Data_API.java`) — uses REST Assured to create a GoRest user with a unique name/email on each run, verifies HTTP `201`, validates the generated `id`, and asserts response fields using expected values from `Payload`.
 - **`TestAllureListners`** — a TestNG `ITestListener` registered in the suite XML. Attaches Playwright screenshots on failure/skip, sets Allure `historyId`/`testCaseId` (required for v3 trends), and attaches a run summary plus a flaky-test report on finish.
 - **Config-driven** — browser, URL, UI credentials, API token, and environment come from `config.properties`; headless mode comes from the `-Dheadless` system property.
 
@@ -209,7 +211,19 @@ API-only history is stored separately in `allure-history/api-allure-history.json
 - `listOfUserApiTest` — lists users, asserts status code `200`, validates response time, and verifies each returned user has the expected fields
 - `getUserCreatedApiTest` — fetches the user created in the current run and verifies all persisted fields
 - `updateUserApiTest` — updates the created user using `PATCH`, then verifies the updated name/status and unchanged email/gender
+- `getUpdatedUserCreatedApiTest` — fetches the updated user and verifies that updated and unchanged fields are persisted correctly
 - `deleteUserApiTest` — deletes the created user using `DELETE`, verifies `204`, and confirms the deleted user returns `404`
+- `mockResponseCheck` — parses the sample JSON returned by `Payload.coursePrice()` to practice JsonPath array and field extraction
+
+### API Payload Utility
+
+`Payload.java` keeps API request body construction separate from the test methods:
+
+- `userData()` creates the POST `/users` payload with a unique name and email for each run.
+- `getCreatedUserName()`, `getCreatedUserEmail()`, `getCreatedUserGender()`, and `getCreatedUserStatus()` return the generated values used by create/get/update assertions.
+- `userUpdateData()` creates the PUT `/users/{userId}` payload for updating the created user.
+- `getUpdatedUserName()` and `getUpdatedUserStatus()` return the expected updated values used after the update call.
+- `coursePrice()` returns mock JSON used by `mockResponseCheck()` for JsonPath practice.
 
 ## Continuous Integration
 
