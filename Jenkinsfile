@@ -5,7 +5,7 @@
 // Paste this whole file into the "Pipeline script" box:
 //   New Item -> Pipeline -> Pipeline script.
 //
-// Stages: Build -> Deploy to QA -> Regression Automation Test -> Publish Report
+// Stages: Checkout -> Build -> Deploy to QA -> Regression Automation Test -> Publish Report -> Qodana
 // Runs mvn directly (Playwright uses in-process browsers) — no Selenium grid.
 // ---------------------------------------------------------------------------
 
@@ -21,16 +21,18 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
 
         stage('Build') {
             steps {
-                // Demo repo from the tutorial — a simple Maven project with tests.
-                git 'https://github.com/jglick/simple-maven-project-with-tests.git'
-                sh 'mvn -Dmaven.test.failure.ignore=true clean package'
+                sh 'mvn -DskipTests clean package'
             }
             post {
                 success {
-                    junit '**/target/surefire-reports/TEST-*.xml'
                     archiveArtifacts 'target/*.jar'
                 }
             }
@@ -47,9 +49,6 @@ pipeline {
                 // catchError keeps the overall build GREEN even if a test fails,
                 // but marks THIS stage red — same behaviour as the reference.
                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                    // Your framework repo (branch main — it has no 'master').
-                    git branch: 'main',
-                        url: 'https://github.com/piyushwadhwa7/Playwright_FrameWork'
                     // Run the TestNG suite headless (no display needed on the agent).
                     sh 'mvn clean test -Dsurefire.suiteXmlFiles=src/test/resources/TestRunners/testng_regression.xml -Dheadless=true'
                 }
@@ -58,8 +57,32 @@ pipeline {
 
         stage('Publish Report') {
             steps {
-                // Framework produces Allure reports (Extent was never wired up).
+                // TestNG results are captured through allure-testng and published by Allure.
                 allure includeProperties: false, results: [[path: 'allure-results']]
+            }
+        }
+        stage('Qodana') {
+            environment {
+                QODANA_TOKEN = credentials('qodana-token')
+            }
+            agent {
+                docker {
+                    args '''
+                        -v "${WORKSPACE}":/data/project
+                        --entrypoint=""
+                        '''
+                    image 'jetbrains/qodana-jvm:2026.2'
+                }
+            }
+            when {
+                beforeAgent true
+                anyOf {
+                    branch 'main'
+                    branch 'Framework_Development'
+                }
+            }
+            steps {
+                sh 'qodana'
             }
         }
     }
