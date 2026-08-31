@@ -49,8 +49,20 @@ pipeline {
                 // catchError keeps the overall build GREEN even if a test fails,
                 // but marks THIS stage red — same behaviour as the reference.
                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                    // Run the TestNG suite headless (no display needed on the agent).
-                    sh 'mvn clean test -Dsurefire.suiteXmlFiles=src/test/resources/TestRunners/testng_regression.xml -Dheadless=true'
+                    withCredentials([
+                        usernamePassword(credentialsId: 'opencart-login', usernameVariable: 'OC_USERNAME', passwordVariable: 'OC_PASSWORD'),
+                        string(credentialsId: 'gorest-token', variable: 'GOREST_TOKEN')
+                    ]) {
+                        // Run the TestNG suite headless (no display needed on the agent).
+                        sh '''
+                            mvn clean test \
+                                -Dsurefire.suiteXmlFiles=src/test/resources/TestRunners/testng_regression.xml \
+                                -Dheadless=true \
+                                -Dusername="$OC_USERNAME" \
+                                -Dpassword="$OC_PASSWORD" \
+                                -Dgorest.bearer.token="$GOREST_TOKEN"
+                        '''
+                    }
                 }
             }
         }
@@ -72,13 +84,6 @@ pipeline {
                         --entrypoint=""
                         '''
                     image 'jetbrains/qodana-jvm:2026.2'
-                }
-            }
-            when {
-                beforeAgent true
-                anyOf {
-                    branch 'main'
-                    branch 'Framework_Development'
                 }
             }
             steps {
