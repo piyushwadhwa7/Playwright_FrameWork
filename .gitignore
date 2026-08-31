@@ -69,3 +69,8 @@ src/test/resources/config/config.properties
 ### MCP / browser session debris ###
 playwright-mcp-output/
 amazon-com-fallback.png
+
+### Qodana / Jenkins local tooling ###
+qodana-results/
+qodana-community-results/
+jenkins-cli.jar
