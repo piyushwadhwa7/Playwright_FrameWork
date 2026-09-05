@@ -74,20 +74,26 @@ pipeline {
             }
         }
         stage('Qodana') {
-            environment {
-                QODANA_TOKEN = credentials('qodana-token')
-            }
             agent {
                 docker {
                     args '''
                         -v "${WORKSPACE}":/data/project
+                        -v "${WORKSPACE}/qodana-results":/data/results
                         --entrypoint=""
                         '''
                     image 'jetbrains/qodana-jvm-community:2026.2'
                 }
             }
             steps {
-                sh 'qodana'
+                sh '''
+                    unset QODANA_TOKEN
+                    qodana
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'qodana-results/**', allowEmptyArchive: true
+                }
             }
         }
     }
