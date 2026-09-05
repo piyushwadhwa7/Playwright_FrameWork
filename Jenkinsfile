@@ -55,6 +55,7 @@ pipeline {
                     ]) {
                         // Run the TestNG suite headless (no display needed on the agent).
                         sh '''
+                            rm -rf allure-results allure-report
                             mvn clean test \
                                 -Dsurefire.suiteXmlFiles=src/test/resources/TestRunners/testng_regression.xml \
                                 -Dheadless=true \
