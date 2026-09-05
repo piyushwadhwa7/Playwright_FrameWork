@@ -83,7 +83,7 @@ pipeline {
                         -v "${WORKSPACE}":/data/project
                         --entrypoint=""
                         '''
-                    image 'jetbrains/qodana-jvm:2026.2'
+                    image 'jetbrains/qodana-jvm-community:2026.2'
                 }
             }
             steps {
