@@ -74,6 +74,9 @@ pipeline {
             }
         }
         stage('Qodana') {
+            environment {
+                QODANA_TOKEN = credentials('qodana-token')
+            }
             agent {
                 docker {
                     args '''
@@ -85,10 +88,7 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                    unset QODANA_TOKEN
-                    qodana
-                '''
+                sh 'qodana'
             }
             post {
                 always {
