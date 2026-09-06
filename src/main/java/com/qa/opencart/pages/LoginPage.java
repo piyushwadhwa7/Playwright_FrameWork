@@ -81,8 +81,6 @@ public class LoginPage {
             }
             System.out.println("Current URL after login attempt: " + page.url());
         }
-
-        System.out.println("user is not logged in successfully.......");
         return false;
     }
 }
