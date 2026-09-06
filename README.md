@@ -21,7 +21,13 @@ A **Java + Playwright** test automation framework built on the **Page Object Mod
 
 ```
 Playwright_FrameWork/
+├── .agents/skills                       # Reusable QA, CI, API, and documentation guidance
+│   ├── ci-failure-diagnoser/SKILL.md
+│   ├── playwright-test-generator/SKILL.md
+│   └── ...
 ├── pom.xml                              # Deps + surefire wired to the TestNG suite
+├── Jenkinsfile                          # Jenkins declarative pipeline
+├── Jenkins.yml_Explanation.md           # Step-by-step Jenkins and deployment guide
 ├── scripts
 │   ├── allure-report.sh                 # Runs full suite N times and builds trend report
 │   └── api-allure-report.sh             # Runs API suite N times and builds API trend report
@@ -67,8 +73,8 @@ Playwright_FrameWork/
 - **`BaseTest`** — UI test classes extend it. `@BeforeTest` loads `config.properties` and launches the browser; `@AfterTest` closes the context.
 - **`BaseApiTest`** — API test classes extend it. `@BeforeTest` loads `config.properties` only, so API tests can run through the same TestNG XML suite without launching a browser.
 - **Page Objects** (`pages/`) — each page encapsulates its locators and actions (e.g. `getHomePageTitle()`, `doSearch(...)`, `navigateToLoginPage()`), supporting page-chaining.
-- **API Payloads** (`pages/Payload.java`) — centralizes reusable JSON payloads for API tests. `userData()` builds the create-user request body and stores the generated expected values exposed through getters like `getCreatedUserName()`. `userUpdateData()` builds the update-user request body and exposes the updated expected values.
-- **API Tests** (`tests/Users_Data_API.java`) — uses REST Assured to create a GoRest user with a unique name/email on each run, verifies HTTP `201`, validates the generated `id`, and asserts response fields using expected values from `Payload`.
+- **API Payloads** (`pages/Payload.java`) — centralizes reusable JSON payloads for API tests. `userData(...)` builds the create-user request body from test data, while `userUpdateData(...)` builds the update request body.
+- **API Tests** (`tests/Users_Data_API.java`) — uses REST Assured and a TestNG data provider to create GoRest users with unique name/email values, validates the response contract, verifies the CRUD flow, and removes created users after the delete check.
 - **`TestAllureListners`** — a TestNG `ITestListener` registered in the suite XML. Attaches Playwright screenshots on failure/skip, sets Allure `historyId`/`testCaseId` (required for v3 trends), and attaches a run summary plus a flaky-test report on finish.
 - **Config-driven** — browser, URL, UI credentials, API token, and environment come from `config.properties`; headless mode comes from the `-Dheadless` system property.
 
@@ -210,7 +216,7 @@ API-only history is stored separately in `allure-history/api-allure-history.json
 - `createUserApiTest` — creates a GoRest user with a unique name/email, asserts status code `201`, verifies the generated `id`, and validates response fields
 - `listOfUserApiTest` — lists users, asserts status code `200`, validates response time, and verifies each returned user has the expected fields
 - `getUserCreatedApiTest` — fetches the user created in the current run and verifies all persisted fields
-- `updateUserApiTest` — updates the created user using `PATCH`, then verifies the updated name/status and unchanged email/gender
+- `updateUserApiTest` — updates the created user using `PUT`, then verifies the updated name/status and unchanged email/gender
 - `getUpdatedUserCreatedApiTest` — fetches the updated user and verifies that updated and unchanged fields are persisted correctly
 - `deleteUserApiTest` — deletes the created user using `DELETE`, verifies `204`, and confirms the deleted user returns `404`
 - `mockResponseCheck` — parses the sample JSON returned by `Payload.coursePrice()` to practice JsonPath array and field extraction
@@ -219,15 +225,45 @@ API-only history is stored separately in `allure-history/api-allure-history.json
 
 `Payload.java` keeps API request body construction separate from the test methods:
 
-- `userData()` creates the POST `/users` payload with a unique name and email for each run.
-- `getCreatedUserName()`, `getCreatedUserEmail()`, `getCreatedUserGender()`, and `getCreatedUserStatus()` return the generated values used by create/get/update assertions.
-- `userUpdateData()` creates the PUT `/users/{userId}` payload for updating the created user.
-- `getUpdatedUserName()` and `getUpdatedUserStatus()` return the expected updated values used after the update call.
+- `userData(name, email, gender, status)` creates the POST `/users` payload from the test's generated values.
+- `saveCreatedUserId(email, userId)` and `getCreatedUserId(email)` retain each created ID for its matching data-provider record.
+- `userUpdateData(name, status)` creates the PUT `/users/{userId}` payload for updating the created user.
+- `removeCreatedUserId(email)` clears the matching ID after deletion.
 - `coursePrice()` returns mock JSON used by `mockResponseCheck()` for JsonPath practice.
 
 ## Continuous Integration
 
 GitHub Actions (`.github/workflows/main.yml`) runs the suite on every push/PR to `main`/`master`, installs Playwright browsers, and executes `mvn test -Dheadless=true`.
+
+## Jenkins Pipeline
+
+`Jenkinsfile` defines a declarative pipeline with these stages:
+
+| Stage | Current behavior |
+|---|---|
+| Checkout | Retrieves the branch that triggered the build. |
+| Build | Runs `mvn -DskipTests clean package` and archives JAR artifacts. |
+| Deploy to QA | Placeholder only; it does not yet deploy an application. |
+| Regression Automation Test | Runs `testng_regression.xml` headlessly with OpenCart and GoRest credentials from Jenkins Credentials. |
+| Publish Report | Publishes `allure-results` through the Jenkins Allure plugin. |
+| Qodana | Runs static analysis in a temporary Docker container on the Jenkins agent and archives `qodana-results`. |
+
+The regression stage deliberately uses `catchError`, so a test failure marks that stage as failed while allowing report publication to continue. Check the stage result and Allure/Surefire output rather than relying only on the overall Jenkins build color.
+
+Read the [step-by-step Jenkins and real deployment guide](Jenkins.yml_Explanation.md) or open its [PDF export](output/pdf/Jenkins.yml_Explanation.pdf) for Docker, QA/staging/production deployment, health-check, approval, and rollback examples.
+
+## Project Skills
+
+Project-local guidance lives in [`.agents/skills`](.agents/skills). These skills help keep repeated QA and delivery tasks consistent as the framework grows:
+
+| Area | Skills |
+|---|---|
+| API and UI automation | `api-test-architect`, `playwright-test-generator`, `playwright-failure-analyzer` |
+| CI, release, and technical decisions | `ci-failure-diagnoser`, `release-risk-analyzer`, `qa-master-problem-solver`, `fast-safe-path-helper` |
+| QA analysis and coverage | `qa-bug-investigator`, `requirement-test-designer`, `red-team-reviewer`, `context-packet-builder` |
+| Planning, data, and communication | `meeting-action-tracker`, `sql-data-validator`, `workplace-message-rewriter`, `resume-linkedin-reviewer` |
+
+Each `SKILL.md` describes when to use it, the relevant project evidence to inspect, safety boundaries, and the expected output format.
 
 ## Roadmap
 
