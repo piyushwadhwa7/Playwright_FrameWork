@@ -29,6 +29,8 @@ public class PlaywrightFactory {
     private static final ThreadLocal<Browser> tlBrowser = new ThreadLocal<>();
     private static final ThreadLocal<BrowserContext> tlBrowserContext = new ThreadLocal<>();
     private static final ThreadLocal<Playwright> tlPlaywright = new ThreadLocal<>();
+    private static final ThreadLocal<String> tlBrowserName = new ThreadLocal<>();
+    private static final ThreadLocal<String> tlEnvironmentName = new ThreadLocal<>();
 
     /** @return the {@link Page} belonging to the current thread (null if not yet initialised). */
     public static Page getPage() {
@@ -50,6 +52,16 @@ public class PlaywrightFactory {
         return tlBrowserContext.get();
     }
 
+    /** @return the browser selected for the current test thread. */
+    public static String getBrowserName() {
+        return tlBrowserName.get();
+    }
+
+    /** @return the environment selected for the current test thread. */
+    public static String getEnvironmentName() {
+        return tlEnvironmentName.get();
+    }
+
     /**
      * Launches the browser named in the config, opens a fresh context + page,
      * navigates to the configured URL, and stores each object in its ThreadLocal.
@@ -60,6 +72,11 @@ public class PlaywrightFactory {
      */
     public Page initBrowser(Properties prop){
         String browserName=prop.getProperty("browser").trim();
+        tlBrowserName.set(browserName);
+        tlEnvironmentName.set(System.getProperty(
+                "test.env",
+                prop.getProperty("env", "local")
+        ).trim());
         System.out.println("Initializing Playwright Browser "+browserName);
         // Headed by default for local runs; CI passes -Dheadless=true (no display on runners)
         boolean headless = Boolean.parseBoolean(System.getProperty("headless", "false"));
@@ -137,6 +154,10 @@ public class PlaywrightFactory {
         if (sysUser != null && !sysUser.isBlank()) prop.setProperty("username", sysUser);
         if (sysPass != null && !sysPass.isBlank()) prop.setProperty("password", sysPass);
         if (goRestToken != null && !goRestToken.isBlank()) prop.setProperty("gorest_bearer_token", goRestToken);
+        tlEnvironmentName.set(System.getProperty(
+                "test.env",
+                prop.getProperty("env", "local")
+        ).trim());
         return prop;
     }
 }

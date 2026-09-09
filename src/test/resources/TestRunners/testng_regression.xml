@@ -17,7 +17,7 @@
 
     <!-- Block number 2 -->
     <test name="Login  Page Test">
-        <parameter name="browser" value="chromium"/>
+        <parameter name="browser" value="firefox"/>
         <classes>
             <class name="com.qa.opencart.tests.LoginPageTest"/>
         </classes>

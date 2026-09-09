@@ -6,10 +6,13 @@ import com.microsoft.playwright.APIRequest;
 import com.microsoft.playwright.APIRequestContext;
 import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Playwright;
+import com.qa.opencart.Utilities.SensitiveDataMasker;
+import io.qameta.allure.Allure;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class GETApiCall {
@@ -18,7 +21,17 @@ public class GETApiCall {
         Playwright playwright=Playwright.create();
         APIRequest request=playwright.request();
         APIRequestContext requestContext=request.newContext();
-        APIResponse apiResponse=requestContext.get("https://gorest.co.in/public/v2/users");
+        String requestUrl = "https://gorest.co.in/public/v2/users";
+        APIResponse apiResponse=requestContext.get(requestUrl);
+        Allure.addAttachment(
+                "Playwright API request and response",
+                "text/plain",
+                "Request: GET " + SensitiveDataMasker.mask(requestUrl)
+                        + "\nResponse status: " + apiResponse.status()
+                        + "\nResponse headers: " + SensitiveDataMasker.mask(String.valueOf(apiResponse.headers()))
+                        + "\nResponse body: " + SensitiveDataMasker.mask(
+                        new String(apiResponse.body(), StandardCharsets.UTF_8))
+        );
         int statusCode=apiResponse.status();
         System.out.println("API Status code: "+statusCode);
         Assert.assertEquals(statusCode,200);
