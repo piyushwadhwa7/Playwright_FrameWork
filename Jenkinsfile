@@ -27,6 +27,25 @@ pipeline {
             }
         }
 
+        stage('Restore Allure History') {
+            steps {
+                script {
+                    // Requires the Jenkins Copy Artifact plugin. A first build
+                    // has no history yet, so it is allowed to continue.
+                    try {
+                        copyArtifacts(
+                            projectName: env.JOB_NAME,
+                            selector: lastSuccessful(),
+                            filter: 'allure-history/**',
+                            optional: true
+                        )
+                    } catch (Exception historyRestoreFailure) {
+                        echo "Allure history was not restored: ${historyRestoreFailure.message}"
+                    }
+                }
+            }
+        }
+
         stage('Build') {
             steps {
                 sh 'mvn -DskipTests clean package'
@@ -55,10 +74,12 @@ pipeline {
                     ]) {
                         // Run the TestNG suite headless (no display needed on the agent).
                         sh '''
-                            rm -rf allure-results allure-report
+                            rm -rf allure-results allure-report target/traces
                             mvn clean test \
                                 -Dsurefire.suiteXmlFiles=src/test/resources/TestRunners/testng_regression.xml \
                                 -Dheadless=true \
+                                -Dtest.env=staging \
+                                -Dtrace.on.failure=true \
                                 -Dusername="$OC_USERNAME" \
                                 -Dpassword="$OC_PASSWORD" \
                                 -Dgorest.bearer.token="$GOREST_TOKEN"
@@ -71,7 +92,7 @@ pipeline {
         stage('Publish Report') {
             steps {
                 // TestNG results are captured through allure-testng and published by Allure.
-                allure includeProperties: false, results: [[path: 'allure-results']]
+                allure includeProperties: true, results: [[path: 'allure-results']]
             }
         }
         stage('Qodana') {
@@ -96,6 +117,14 @@ pipeline {
                     archiveArtifacts artifacts: 'qodana-results/**', allowEmptyArchive: true
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            // Keep evidence and the generated history outside the disposable workspace.
+            archiveArtifacts artifacts: 'allure-results/**,allure-history/**,target/traces/**,target/surefire-reports/**',
+                    allowEmptyArchive: true
         }
     }
 }

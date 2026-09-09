@@ -1,6 +1,8 @@
 package com.qa.opencart.base;
 
 import com.qa.opencart.factory.PlaywrightFactory;
+import com.qa.opencart.listners.AllureRestAssuredFilter;
+import io.restassured.RestAssured;
 import org.testng.annotations.BeforeTest;
 
 import java.util.Properties;
@@ -16,6 +18,7 @@ public class BaseApiTest {
     public void setupApi() {
         PlaywrightFactory pf = new PlaywrightFactory();// Initilizing the playwright server
         prop = pf.initProp();
+        RestAssured.replaceFiltersWith(new AllureRestAssuredFilter());
     }
 
     protected String getRequiredProperty(String key) {

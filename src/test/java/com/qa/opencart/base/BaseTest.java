@@ -6,6 +6,8 @@ import com.qa.opencart.pages.HomePage;
 import com.qa.opencart.pages.LoginPage;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Optional;
+import org.testng.annotations.Parameters;
 
 import java.util.Properties;
 
@@ -25,9 +27,12 @@ public class BaseTest {
      * launches the browser/page, and creates the HomePage object for tests to use.
      */
     @BeforeTest
-    public void setup(){
+    @Parameters("browser")
+    public void setup(@Optional("chromium") String browser) {
         pf= new PlaywrightFactory();
         prop= pf.initProp();
+        // Apply the browser selected in testng_regression.xml
+        prop.setProperty("browser", browser);
         page=pf.initBrowser(prop);
         homePage= new HomePage(page);
     }

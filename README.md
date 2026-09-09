@@ -41,6 +41,8 @@ Playwright_FrameWork/
     │   │   └── AppConstants.java          # Shared expected values (titles, etc.)
     │   ├── factory
     │   │   └── PlaywrightFactory.java     # Browser/context/page init + ThreadLocal<Page>
+    │   ├── Utilities
+    │   │   └── SensitiveDataMasker.java   # Redacts credentials and personal data in reports
     │   ├── listners
     │   │   ├── Retry.java                 # IRetryAnalyzer (retries failed tests up to 3x)
     │   │   └── TestAllureListners.java    # ITestListener: screenshots, Allure attachments,
@@ -54,6 +56,8 @@ Playwright_FrameWork/
         │   ├── base
         │   │   ├── BaseTest.java          # UI setup/teardown; loads config, inits browser
         │   │   └── BaseApiTest.java       # API setup; loads config without launching browser
+        │   ├── listners
+        │   │   └── AllureRestAssuredFilter.java # Masked API exchange attachment for Allure
         │   └── tests
         │       ├── HomePageTest.java      # Home page tests (data-driven search)
         │       ├── LoginPageTest.java     # Login page tests
@@ -75,7 +79,8 @@ Playwright_FrameWork/
 - **Page Objects** (`pages/`) — each page encapsulates its locators and actions (e.g. `getHomePageTitle()`, `doSearch(...)`, `navigateToLoginPage()`), supporting page-chaining.
 - **API Payloads** (`pages/Payload.java`) — centralizes reusable JSON payloads for API tests. `userData(...)` builds the create-user request body from test data, while `userUpdateData(...)` builds the update request body.
 - **API Tests** (`tests/Users_Data_API.java`) — uses REST Assured and a TestNG data provider to create GoRest users with unique name/email values, validates the response contract, verifies the CRUD flow, and removes created users after the delete check.
-- **`TestAllureListners`** — a TestNG `ITestListener` registered in the suite XML. Attaches Playwright screenshots on failure/skip, sets Allure `historyId`/`testCaseId` (required for v3 trends), and attaches a run summary plus a flaky-test report on finish.
+- **`TestAllureListners`** — a TestNG listener registered in the suite XML. It sets stable Allure `historyId`/`testCaseId` values, adds browser/environment/build labels, captures screenshots on failure/skip, records Playwright traces for failures, supports opt-in retries, and attaches run-summary plus flaky-test diagnostics.
+- **`AllureRestAssuredFilter`** — captures REST Assured request/response exchanges in Allure. `SensitiveDataMasker` redacts authorization headers, tokens, credentials, emails, and common personal-data fields before they are attached.
 - **Config-driven** — browser, URL, UI credentials, API token, and environment come from `config.properties`; headless mode comes from the `-Dheadless` system property.
 
 ## Prerequisites
@@ -122,6 +127,8 @@ mvn clean test -Dheadless=true  # headless — required on CI (no display)
 
 - **Headless:** defaults to `false` so local runs are headed. CI passes `-Dheadless=true`.
 - **Browser/URL:** controlled by `config.properties`.
+- **TestNG browser selection:** the browser parameter in `testng_regression.xml` is applied per UI `<test>` block.
+- **Environment and diagnostics:** `-Dtest.env=staging` labels the run; `-Dtrace.on.failure=true` enables Playwright traces; `-Dretry.enabled=true` enables the registered retry analyzer.
 - **UI + API in one suite:** `testng_regression.xml` includes both browser-based UI tests and API-only tests. API tests extend `BaseApiTest`, so they do not initialize Playwright browsers.
 
 Run only the API suite:
@@ -200,6 +207,16 @@ API-only history is stored separately in `allure-history/api-allure-history.json
 >
 > On CI, persist `allure-history/allure-history.jsonl` between builds (cache/artifact) so trends survive across runs.
 
+The Jenkins pipeline restores the previous successful build's `allure-history/` directory when the Copy Artifact plugin is available. At the end of every build it archives Allure results, history, Playwright failure traces, and Surefire reports so diagnostic evidence is retained.
+
+Failed UI tests can include a Playwright trace ZIP under `target/traces/`. Open it with:
+
+```bash
+npx playwright show-trace target/traces/<trace-file>.zip
+```
+
+API request and response attachments are masked before they are written to Allure. Reports should still be treated as controlled test artifacts.
+
 ## Test Coverage
 
 **HomePageTest**
@@ -242,13 +259,16 @@ GitHub Actions (`.github/workflows/main.yml`) runs the suite on every push/PR to
 | Stage | Current behavior |
 |---|---|
 | Checkout | Retrieves the branch that triggered the build. |
+| Restore Allure History | Copies `allure-history/**` from the last successful build when the Copy Artifact plugin is installed; the first build continues without history. |
 | Build | Runs `mvn -DskipTests clean package` and archives JAR artifacts. |
 | Deploy to QA | Placeholder only; it does not yet deploy an application. |
-| Regression Automation Test | Runs `testng_regression.xml` headlessly with OpenCart and GoRest credentials from Jenkins Credentials. |
+| Regression Automation Test | Runs `testng_regression.xml` headlessly with staging labels, optional failure traces, and OpenCart/GoRest credentials from Jenkins Credentials. |
 | Publish Report | Publishes `allure-results` through the Jenkins Allure plugin. |
-| Qodana | Runs static analysis in a temporary Docker container on the Jenkins agent and archives `qodana-results`. |
+| Qodana | Runs static analysis in a temporary Docker container on the Jenkins agent and archives `qodana-results`. Docker must be available on the Jenkins agent. |
 
 The regression stage deliberately uses `catchError`, so a test failure marks that stage as failed while allowing report publication to continue. Check the stage result and Allure/Surefire output rather than relying only on the overall Jenkins build color.
+
+The pipeline archives `allure-results`, `allure-history`, `target/traces`, and `target/surefire-reports` in its `post` block, including when an earlier stage fails.
 
 Read the [step-by-step Jenkins and real deployment guide](Jenkins.yml_Explanation.md) or open its [PDF export](output/pdf/Jenkins.yml_Explanation.pdf) for Docker, QA/staging/production deployment, health-check, approval, and rollback examples.
 
@@ -274,6 +294,8 @@ Each `SKILL.md` describes when to use it, the relevant project evidence to inspe
 - [x] API-only TestNG base class and REST Assured user creation test
 - [x] CI integration (GitHub Actions)
 - [x] Allure reporting with cross-run trend graphs
+- [x] Persist Allure history across Jenkins builds
+- [x] Mask sensitive data in API and UI report attachments
+- [x] Optional Playwright failure traces and TestNG retries
 - [ ] Excel-driven data via Apache POI
 - [ ] Wire AspectJ weaver so `@Attachment` screenshots render on failure
-- [ ] Persist Allure history on CI for long-term trends
